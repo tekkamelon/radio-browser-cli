@@ -33,7 +33,10 @@ class RadioBrowserCLI:
         params['limit'] = kwargs.get('limit', 20)
         params['hidebroken'] = 'true'
         try:
-            response = self.session.get(f"{self.base_url}/stations/search", params=params)
+            response = self.session.get(
+                f"{self.base_url}/stations/search",
+                params=params
+            )
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
@@ -67,7 +70,9 @@ class RadioBrowserCLI:
 
         if format_type == 'csv':
             for i, station in enumerate(stations):
-                name = station.get('name', 'N/A').replace(',', ';').replace('"', "'")
+                name = station.get('name', 'N/A').replace(',', ';').replace(
+                    '"', "'"
+                )
                 country = station.get('country', 'N/A')
                 tags = station.get('tags', 'N/A').replace(',', ';')
                 url = station.get('url_resolved', station.get('url', 'N/A'))
@@ -83,7 +88,10 @@ class RadioBrowserCLI:
                 url = station.get('url_resolved', station.get('url', 'N/A'))
                 bitrate = station.get('bitrate', 'N/A')
                 codec = station.get('codec', 'N/A')
-                print(f"{i+1}\t{name}\t{country}\t{tags}\t{bitrate}\t{codec}\t{url}")
+                print(
+                    f"{i+1}\t{name}\t{country}\t{tags}\t"
+                    f"{bitrate}\t{codec}\t{url}"
+                )
 
         elif format_type == 'urls':
             for station in stations:
@@ -105,7 +113,9 @@ class RadioBrowserCLI:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Radio-Browser.info APIを使用したラジオ局検索ツール')
+    parser = argparse.ArgumentParser(
+        description='Radio-Browser.info APIを使用したラジオ局検索ツール'
+    )
     subparsers = parser.add_subparsers(dest='command', help='利用可能なコマンド')
     # search コマンド
     search_parser = subparsers.add_parser('search', help='ラジオ局を検索')
@@ -113,12 +123,17 @@ def main():
     search_parser.add_argument('--country', help='国で検索')
     search_parser.add_argument('--tag', help='ジャンル/タグで検索')
     search_parser.add_argument('--language', help='言語で検索')
-    search_parser.add_argument('--limit', type=int, default=20, help='結果数の上限 (デフォルト: 20)')
-    search_parser.add_argument('--format', choices=['csv', 'tsv', 'urls', 'json', 'm3u'], 
-                              default='csv', help='出力形式 (デフォルト: csv)')
+    search_parser.add_argument(
+            '--limit', type=int, default=20, help='結果数の上限 (デフォルト: 20)'
+    )
+    search_parser.add_argument(
+        '--format', choices=['csv', 'tsv', 'urls', 'json', 'm3u'],
+        default='csv', help='出力形式 (デフォルト: csv)')
     # countries コマンド
     countries_parser = subparsers.add_parser('countries', help='利用可能な国のリストを表示')
-    countries_parser.add_argument('--limit', type=int, default=50, help='表示数の上限')
+    countries_parser.add_argument(
+            '--limit', type=int, default=50, help='表示数の上限'
+    )
     # tags コマンド
     tags_parser = subparsers.add_parser('tags', help='利用可能なタグのリストを表示')
     tags_parser.add_argument('--limit', type=int, default=50, help='表示数の上限')
@@ -140,12 +155,18 @@ def main():
         countries = cli.get_countries()
         print("利用可能な国:")
         for i, country in enumerate(countries[:args.limit]):
-            print(f"  {country.get('name', 'N/A')} ({country.get('stationcount', 0)} 局)")
+            print(
+                f"  {country.get('name', 'N/A')} "
+                f"({country.get('stationcount', 0)} 局)"
+            )
     elif args.command == 'tags':
         tags = cli.get_tags()
         print("利用可能なタグ:")
         for i, tag in enumerate(tags[:args.limit]):
-            print(f"  {tag.get('name', 'N/A')} ({tag.get('stationcount', 0)} 局)")
+            print(
+                f"  {tag.get('name', 'N/A')} "
+                f"({tag.get('stationcount', 0)} 局))"
+            )
 
 
 if __name__ == '__main__':
