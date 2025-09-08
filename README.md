@@ -1,7 +1,11 @@
 # radio-browser-cli
 Claudeのハルシネーションを現実にした,ウェブラジオを検索するCLIツール
 
-[参考](https://claude.ai/share/178464c2-800a-4e62-b46a-494cb54a96a3)
+- 参考
+
+    - https://claude.ai/share/178464c2-800a-4e62-b46a-494cb54a96a3
+
+    - https://claude.ai/public/artifacts/5c55cb4d-df3f-4b31-8520-4444f21a7708
 
 ## 概要
 `radio-browser-cli`は、[Radio Browser](https://www.radio-browser.info/)のAPIを利用して、世界中のウェブラジオ局を検索するためのコマンドラインツールです。検索結果は、CSV、TSV、JSON、M3Uプレイリストなど、様々な形式で出力できます。
