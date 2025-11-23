@@ -224,7 +224,7 @@ def main():
     search_parser.add_argument('--language', help='言語で検索')
     # 結果数制限オプション
     search_parser.add_argument(
-            '--limit', type=int, default=20, help='結果数の上限 (デフォルト: 20)'
+        '--limit', type=int, default=20, help='結果数の上限 (デフォルト: 20)'
     )
     # 出力形式オプション
     search_parser.add_argument(
@@ -235,7 +235,7 @@ def main():
     countries_parser = subparsers.add_parser('countries', help='利用可能な国のリストを表示')
     # 表示数制限オプション
     countries_parser.add_argument(
-            '--limit', type=int, default=50, help='表示数の上限'
+        '--limit', type=int, default=50, help='表示数の上限'
     )
     # tags コマンド
     # tagsサブコマンドのパーサーを作成
