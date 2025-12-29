@@ -17,8 +17,15 @@ import sys
 class RadioBrowserCLI:
     def __init__(self):
         """初期化メソッド。APIのベースURLとセッションを設定"""
-        # Radio-Browser APIのベースURL
-        self.base_url = "https://de1.api.radio-browser.info/json"
+        # Radio-Browser APIのベースURLリスト（フェイルオーバー用）
+        self.api_urls = [
+            "https://de2.api.radio-browser.info/json",
+            "https://fi1.api.radio-browser.info/json",
+            "https://nl1.api.radio-browser.info/json"
+        ]
+
+        self.current_base_url = None
+
         # セッションオブジェクトを作成
         self.session = requests.Session()
         # リクエストヘッダーを更新
@@ -26,6 +33,24 @@ class RadioBrowserCLI:
             # ユーザーエージェントを設定
             'User-Agent': 'RadioBrowserCLI/1.0'
         })
+
+
+    def _api_get(self, endpoint, params=None):
+        """プライベートメソッド。APIリクエストを複数のURLでフェイルオーバー実行"""
+        for base_url in self.api_urls:
+            try:
+                response = self.session.get(
+                    f"{base_url}/{endpoint}",
+                    params=params
+                )
+                response.raise_for_status()
+                self.current_base_url = base_url
+                return response
+            except requests.RequestException as e:
+                print(f"{base_url} に接続失敗: {e}", file=sys.stderr)
+                continue
+        print("すべてのAPIエンドポイントが失敗しました。", file=sys.stderr)
+        return None
 
     def search_stations(self, **kwargs):
         """ラジオ局を検索するメソッド
