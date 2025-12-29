@@ -207,7 +207,47 @@ def main():
     # 引数パーサーを作成
     # 説明文を設定
     parser = argparse.ArgumentParser(
-        description='Radio-Browser.info APIを使用したラジオ局検索ツール'
+        description='Radio-Browser.info APIを使用したラジオ局検索ツール',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""## 使い方
+
+### ラジオ局を検索する (search)
+
+**基本コマンド**
+```
+radio-browser-cli search [オプション]
+```
+
+**オプション**
+- `--name NAME`: ラジオ局名で検索
+- `--country COUNTRY`: 国名で検索 (例: "Japan")
+- `--tag TAG`: ジャンル/タグで検索 (例: "jazz")
+- `--language LANGUAGE`: 言語で検索 (例: "japanese")
+- `--limit LIMIT`: 結果の最大表示数 (デフォルト: 20)
+- `--format {csv,tsv,urls,json,m3u}`: 出力形式 (デフォルト: csv)
+
+**使用例**
+- **名前で検索 (例: "BBC")**
+  ```
+  radio-browser-cli search --name "BBC"
+  ```
+
+- **国とタグで検索し、M3U形式で出力**
+  ```
+  radio-browser-cli search --country "France" --tag "chanson" --limit 10 --format m3u
+  ```
+
+### 利用可能な国の一覧を表示する (countries)
+```
+radio-browser-cli countries
+```
+- `--limit LIMIT`: 表示数の上限を指定できます (デフォルト: 50)
+
+### 利用可能なタグの一覧を表示する (tags)
+```
+radio-browser-cli tags
+```
+- `--limit LIMIT`: 表示数の上限を指定できます (デフォルト: 50)"""
     )
     # サブコマンド用のパーサーを追加
     subparsers = parser.add_subparsers(dest='command', help='利用可能なコマンド')
