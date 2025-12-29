@@ -34,7 +34,6 @@ class RadioBrowserCLI:
             'User-Agent': 'RadioBrowserCLI/1.0'
         })
 
-
     def _api_get(self, endpoint, params=None):
         """プライベートメソッド。APIリクエストを複数のURLでフェイルオーバー実行"""
         for base_url in self.api_urls:
@@ -240,7 +239,10 @@ def main():
     radio-browser-cli search --name "BBC"
 
   国とタグで検索し、M3U形式で出力:
-    radio-browser-cli search --country "France" --tag "chanson" --limit 10 --format m3u
+    radio-browser-cli search --country "France" \
+                             --tag "chanson" \
+                             --limit 10 \
+                             --format m3u
 
 利用可能な国の一覧を表示する (countries)
 ---------------------------------------
