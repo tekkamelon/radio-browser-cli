@@ -10,12 +10,16 @@ Claudeのハルシネーションを現実にした,ウェブラジオを検索�
 `radio-browser-cli`は、[Radio Browser](https://www.radio-browser.info/)のAPIを利用して、世界中のウェブラジオ局を検索するためのコマンドラインツールです。検索結果は、CSV、TSV、JSON、M3Uプレイリストなど、様々な形式で出力できます。
 
 ## APIとフェイルオーバー
-このツールは、以下の[Radio Browser](https://www.radio-browser.info/)の公開APIサーバーを利用します。
+このツールは、Radio Browser APIサーバーリストをDNS TXTレコード `all.api.radio-browser.info` からDoH (DNS over HTTPS, Google Public DNS) で動的に取得します。これにより、利用可能なサーバーを自動的に検出します。
 
+取得に失敗した場合は、以下のフォールバックリストを使用します：
+- `https://de1.api.radio-browser.info/json`
 - `https://de2.api.radio-browser.info/json`
 - `https://fi1.api.radio-browser.info/json`
+- `https://fr1.api.radio-browser.info/json`
+- `https://nl1.api.radio-browser.info/json`
 
-APIへの接続に失敗した場合、リストにある次のサーバーへ自動的にフォールバックするフェイルオーバー機能が実装されており、安定した利用が可能です。
+APIリクエスト時は、取得したサーバーリストを順次試行するフェイルオーバー機能により、高い可用性を確保しています。
 
 ## 主な機能
 - キーワード（局名）、国、タグ、言語によるラジオ局の検索
