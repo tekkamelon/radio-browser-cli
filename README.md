@@ -14,7 +14,6 @@ Claudeのハルシネーションを現実にした,ウェブラジオを検索�
 
 - `https://de2.api.radio-browser.info/json`
 - `https://fi1.api.radio-browser.info/json`
-- `https://nl1.api.radio-browser.info/json`
 
 APIへの接続に失敗した場合、リストにある次のサーバーへ自動的にフォールバックするフェイルオーバー機能が実装されており、安定した利用が可能です。
 
