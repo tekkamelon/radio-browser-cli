@@ -12,19 +12,12 @@ import json
 import argparse
 # システム固有のパラメータと関数にアクセスするためのライブラリ
 import sys
+import base64
 
 
 class RadioBrowserCLI:
     def __init__(self):
         """初期化メソッド。APIのベースURLとセッションを設定"""
-        # Radio-Browser APIのベースURLリスト（フェイルオーバー用）
-        self.api_urls = [
-            "https://de2.api.radio-browser.info/json",
-            "https://fi1.api.radio-browser.info/json"
-        ]
-
-        self.current_base_url = None
-
         # セッションオブジェクトを作成
         self.session = requests.Session()
         # リクエストヘッダーを更新
@@ -32,6 +25,52 @@ class RadioBrowserCLI:
             # ユーザーエージェントを設定
             'User-Agent': 'RadioBrowserCLI/1.0'
         })
+        # Radio-Browser APIのベースURLリスト（フェイルオーバー用、DNS TXTから動的取得）
+        self.api_urls = self._get_api_servers()
+
+        self.current_base_url = None
+
+    def _get_api_servers(self):
+        """APIサーバーリストをDNS TXTレコードから動的に取得（DoH使用）"""
+        try:
+            params = {
+                "name": "all.api.radio-browser.info",
+                "type": "TXT"
+            }
+            headers = {"accept": "application/dns-json"}
+            resp = self.session.get("https://dns.google/resolve", params=params, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            if data["Status"] != 0:
+                raise ValueError(f"DNSクエリ失敗: status={data['Status']}")
+            servers = []
+            for answer in data.get("Answer", []):
+                if answer.get("type") == 16:  # TXT
+                    txt_bytes = base64.b64decode(answer["data"])
+                    pos = 0
+                    while pos < len(txt_bytes):
+                        length = txt_bytes[pos]
+                        pos += 1
+                        if length > 0 and pos + length <= len(txt_bytes):
+                            server_str = txt_bytes[pos:pos + length].decode("utf-8").strip('"')
+                            if server_str.startswith("https://") and "api.radio-browser.info/json" in server_str:
+                                servers.append(server_str)
+                        pos += length
+            if servers:
+                print(f"DNSから{len(servers)}個のAPIサーバーを取得しました。", file=sys.stderr)
+                return servers
+        except Exception as e:
+            print(f"DNS TXT取得失敗，使用フォールバックリスト: {e}", file=sys.stderr)
+        # フォールバックサーバーリスト
+        fallback_servers = [
+            "https://de1.api.radio-browser.info/json",
+            "https://de2.api.radio-browser.info/json",
+            "https://fi1.api.radio-browser.info/json",
+            "https://fr1.api.radio-browser.info/json",
+            "https://nl1.api.radio-browser.info/json",
+        ]
+        print("フォールバックAPIサーバーリストを使用します。", file=sys.stderr)
+        return fallback_servers
 
     def _api_get(self, endpoint, params=None):
         """プライベートメソッド。APIリクエストを複数のURLでフェイルオーバー実行"""
@@ -106,18 +145,12 @@ class RadioBrowserCLI:
         Returns:
             list: タグのリスト
         """
-        try:
-            # タグリストのエンドポイントにGETリクエスト
-            response = self.session.get(f"{self.base_url}/tags")
-            # ステータスコードが200以外なら例外を発生
-            response.raise_for_status()
-            # JSON形式でレスポンスを返す
+        # APIリクエストを送信
+        response = self._api_get("tags")
+        if response:
             return response.json()
-        # リクエスト例外をキャッチ
-        except requests.RequestException as e:
-            # エラーメッセージを出力
-            print(f"エラー: タグリストの取得に失敗しました - {e}", file=sys.stderr)
-            # 空のリストを返す
+        else:
+            # エラーメッセージは _api_get で出力済み
             return []
 
     def display_stations(self, stations, format_type='csv'):
