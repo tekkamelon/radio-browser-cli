@@ -20,8 +20,7 @@ class RadioBrowserCLI:
         # Radio-Browser APIのベースURLリスト（フェイルオーバー用）
         self.api_urls = [
             "https://de2.api.radio-browser.info/json",
-            "https://fi1.api.radio-browser.info/json",
-            "https://nl1.api.radio-browser.info/json"
+            "https://fi1.api.radio-browser.info/json"
         ]
 
         self.current_base_url = None
