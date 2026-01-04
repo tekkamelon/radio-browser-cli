@@ -12,7 +12,6 @@ import json
 import argparse
 # システム固有のパラメータと関数にアクセスするためのライブラリ
 import sys
-import base64
 
 
 class RadioBrowserCLI:
@@ -31,36 +30,35 @@ class RadioBrowserCLI:
         self.current_base_url = None
 
     def _get_api_servers(self):
-        """APIサーバーリストをDNS TXTレコードから動的に取得（DoH使用）"""
+        """APIサーバーリストをDNS経由で動的に取得"""
         try:
-            params = {
-                "name": "all.api.radio-browser.info",
-                "type": "TXT"
-            }
-            headers = {"accept": "application/dns-json"}
-            resp = self.session.get("https://dns.google/resolve", params=params, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-            if data["Status"] != 0:
-                raise ValueError(f"DNSクエリ失敗: status={data['Status']}")
+            # 方法1: 直接all.api.radio-browser.infoにアクセスして利用可能なサーバーリストを取得
+            print("APIサーバーリストを取得中...", file=sys.stderr)
+            response = self.session.get(
+                "https://all.api.radio-browser.info/json/servers",
+                timeout=5
+            )
+            response.raise_for_status()
+            servers_data = response.json()
+            
             servers = []
-            for answer in data.get("Answer", []):
-                if answer.get("type") == 16:  # TXT
-                    txt_bytes = base64.b64decode(answer["data"])
-                    pos = 0
-                    while pos < len(txt_bytes):
-                        length = txt_bytes[pos]
-                        pos += 1
-                        if length > 0 and pos + length <= len(txt_bytes):
-                            server_str = txt_bytes[pos:pos + length].decode("utf-8").strip('"')
-                            if server_str.startswith("https://") and "api.radio-browser.info/json" in server_str:
-                                servers.append(server_str)
-                        pos += length
+            for server in servers_data:
+                server_name = server.get('name', '')
+                if server_name:
+                    # サーバー名からURLを構築
+                    server_url = f"https://{server_name}/json"
+                    servers.append(server_url)
+            
             if servers:
-                print(f"DNSから{len(servers)}個のAPIサーバーを取得しました。", file=sys.stderr)
+                print(f"{len(servers)}個のAPIサーバーを取得しました。", file=sys.stderr)
                 return servers
+            else:
+                raise ValueError("サーバーリストが空です")
+                
         except Exception as e:
-            print(f"DNS TXT取得失敗，使用フォールバックリスト: {e}", file=sys.stderr)
+            print(f"APIサーバーリスト取得失敗: {e}", file=sys.stderr)
+            print("フォールバックサーバーリストを使用します。", file=sys.stderr)
+        
         # フォールバックサーバーリスト
         fallback_servers = [
             "https://de1.api.radio-browser.info/json",
@@ -69,7 +67,6 @@ class RadioBrowserCLI:
             "https://fr1.api.radio-browser.info/json",
             "https://nl1.api.radio-browser.info/json",
         ]
-        print("フォールバックAPIサーバーリストを使用します。", file=sys.stderr)
         return fallback_servers
 
     def _api_get(self, endpoint, params=None):
@@ -203,7 +200,7 @@ class RadioBrowserCLI:
                 codec = station.get('codec', 'N/A')
                 # TSV形式で出力
                 print(
-                    f"{i+1}\t{name}\t{country}\t{tags}	"
+                    f"{i+1}\t{name}\t{country}\t{tags}\t"
                     f"{bitrate}\t{codec}\t{url}"
                 )
 
@@ -365,7 +362,7 @@ def main():
             # タグ名と局数を出力
             print(
                 f"  {tag.get('name', 'N/A')} "
-                f"({tag.get('stationcount', 0)} 局))"
+                f"({tag.get('stationcount', 0)} 局)"
             )
 
 
