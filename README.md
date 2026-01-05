@@ -44,6 +44,12 @@ chmod +x radio-browser-cli
 sudo mv radio-browser-cli /usr/local/bin/
 ```
 
+### 3. 環境変数の設定（オプション）
+API リクエストのタイムアウト時間を `RADIO_BROWSER_TIMEOUT` 環境変数でカスタマイズできます。デフォルトは10秒です。
+```bash
+export RADIO_BROWSER_TIMEOUT=30  # タイムアウトを30秒に設定
+```
+
 ## 使い方
 
 ### ラジオ局を検索する (`search`)
