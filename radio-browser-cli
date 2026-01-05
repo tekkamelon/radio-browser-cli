@@ -12,6 +12,18 @@ import json
 import argparse
 # システム固有のパラメータと関数にアクセスするためのライブラリ
 import sys
+# 型ヒントのためのライブラリ
+import typing
+# 環境変数とログのためのライブラリ
+import os
+import logging
+
+# 環境変数からの設定
+API_TIMEOUT = int(os.getenv('RADIO_BROWSER_TIMEOUT', '10'))
+
+# ログ設定
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class RadioBrowserCLI:
@@ -69,51 +81,49 @@ class RadioBrowserCLI:
         ]
         return fallback_servers
 
-    def _api_get(self, endpoint, params=None):
+    def _api_get(self, endpoint: str, params: typing.Optional[dict] = None, timeout: int = API_TIMEOUT) -> typing.Optional[requests.Response]:
         """プライベートメソッド。APIリクエストを複数のURLでフェイルオーバー実行"""
         for base_url in self.api_urls:
             try:
                 response = self.session.get(
                     f"{base_url}/{endpoint}",
-                    params=params
+                    params=params,
+                    timeout=timeout
                 )
                 response.raise_for_status()
                 self.current_base_url = base_url
+                logger.info(f"APIリクエスト成功: {base_url}/{endpoint}")
                 return response
             except requests.RequestException as e:
-                print(f"{base_url} に接続失敗: {e}", file=sys.stderr)
+                logger.warning(f"{base_url} に接続失敗: {e}")
                 continue
-        print("すべてのAPIエンドポイントが失敗しました。", file=sys.stderr)
+        logger.error("すべてのAPIエンドポイントが失敗しました。")
         return None
 
-    def search_stations(self, **kwargs):
+    def search_stations(self, name: typing.Optional[str] = None, country: typing.Optional[str] = None,
+                       tag: typing.Optional[str] = None, language: typing.Optional[str] = None,
+                       limit: int = 20) -> typing.List[dict]:
         """ラジオ局を検索するメソッド
         Args:
-            **kwargs: 検索条件（name, country, tag, language, limit）
+            name: ラジオ局名
+            country: 国名
+            tag: タグ
+            language: 言語
+            limit: 結果数制限
         Returns:
             list: 検索結果のラジオ局リスト
         """
         # APIリクエストのパラメータを格納する辞書
         params = {}
-        # 名前が指定されていれば
-        if kwargs.get('name'):
-            # パラメータに追加
-            params['name'] = kwargs['name']
-        # 国が指定されていれば
-        if kwargs.get('country'):
-            # パラメータに追加
-            params['country'] = kwargs['country']
-        # タグが指定されていれば
-        if kwargs.get('tag'):
-            # パラメータに追加
-            params['tag'] = kwargs['tag']
-        # 言語が指定されていれば
-        if kwargs.get('language'):
-            # パラメータに追加
-            params['language'] = kwargs['language']
-        # 結果数制限
-        # リミットを設定（デフォルト20）
-        params['limit'] = kwargs.get('limit', 20)
+        if name:
+            params['name'] = name
+        if country:
+            params['country'] = country
+        if tag:
+            params['tag'] = tag
+        if language:
+            params['language'] = language
+        params['limit'] = limit
         # 動作していない局を非表示にする
         params['hidebroken'] = 'true'
         # APIリクエストを送信
@@ -121,40 +131,74 @@ class RadioBrowserCLI:
         if response:
             return response.json()
         else:
-            # エラーメッセージは _api_get で出力済み
             return []
 
-    def get_countries(self):
+    def get_countries(self, limit: typing.Optional[int] = None) -> typing.List[dict]:
         """利用可能な国のリストを取得するメソッド
+        Args:
+            limit: 取得する国の最大数
         Returns:
             list: 国のリスト
         """
-        # APIリクエストを送信
-        response = self._api_get("countries")
+        params = {}
+        if limit:
+            params['limit'] = limit
+        response = self._api_get("countries", params=params)
         if response:
             return response.json()
         else:
-            # エラーメッセージは _api_get で出力済み
             return []
 
-    def get_tags(self):
+    def get_tags(self, limit: typing.Optional[int] = None) -> typing.List[dict]:
         """利用可能なタグのリストを取得するメソッド
+        Args:
+            limit: 取得するタグの最大数
         Returns:
             list: タグのリスト
         """
-        # APIリクエストを送信
-        response = self._api_get("tags")
+        params = {}
+        if limit:
+            params['limit'] = limit
+        response = self._api_get("tags", params=params)
         if response:
             return response.json()
         else:
-            # エラーメッセージは _api_get で出力済み
             return []
 
-    def display_stations(self, stations, format_type='csv'):
+    def _format_station_line(self, station: dict, format_type: str, index: int) -> str:
+        """ラジオ局を指定された形式の行にフォーマットするヘルパーメソッド"""
+        name = station.get('name', 'N/A')
+        country = station.get('country', 'N/A')
+        tags = station.get('tags', 'N/A')
+        url = station.get('url_resolved', station.get('url', 'N/A'))
+        bitrate = station.get('bitrate', 'N/A')
+        codec = station.get('codec', 'N/A')
+
+        if format_type == 'csv':
+            name = name.replace(',', ';').replace('"', "'")
+            tags = tags.replace(',', ';')
+            return f"{index},{name},{country},{tags},{bitrate},{codec},{url}"
+        elif format_type == 'tsv':
+            name = name.replace('\t', ' ')
+            tags = tags.replace('\t', ' ')
+            return f"{index}\t{name}\t{country}\t{tags}\t{bitrate}\t{codec}\t{url}"
+        else:
+            raise ValueError(f"サポートされていないフォーマット: {format_type}")
+
+    def _is_valid_url(self, url: str) -> bool:
+        """URLが有効かをチェックするヘルパーメソッド"""
+        from urllib.parse import urlparse
+        try:
+            result = urlparse(url)
+            return all([result.scheme, result.netloc])
+        except:
+            return False
+
+    def display_stations(self, stations: typing.List[dict], format_type: str = 'csv') -> None:
         """検索結果を指定された形式で表示するメソッド
         Args:
-            stations (list): ラジオ局のリスト
-            format_type (str): 出力形式（csv, tsv, urls, json, m3u）
+            stations: ラジオ局のリスト
+            format_type: 出力形式（csv, tsv, urls, json, m3u）
         """
         # ラジオ局が存在しない場合
         if not stations:
@@ -162,47 +206,9 @@ class RadioBrowserCLI:
             return
 
         # CSV形式の場合
-        if format_type == 'csv':
-            # 各ラジオ局について
+        if format_type in ('csv', 'tsv'):
             for i, station in enumerate(stations):
-                # 名前を取得し,カンマをセミコロンに,ダブルクォートをシングルクォートに置換
-                name = station.get('name', 'N/A').replace(',', ';').replace(
-                    '"', "'"
-                )
-                # 国を取得
-                country = station.get('country', 'N/A')
-                # タグを取得し,カンマをセミコロンに置換
-                tags = station.get('tags', 'N/A').replace(',', ';')
-                # URLを取得
-                url = station.get('url_resolved', station.get('url', 'N/A'))
-                # ビットレートを取得
-                bitrate = station.get('bitrate', 'N/A')
-                # コーデックを取得
-                codec = station.get('codec', 'N/A')
-                # CSV形式で出力
-                print(f"{i+1},{name},{country},{tags},{bitrate},{codec},{url}")
-
-        # TSV形式の場合
-        elif format_type == 'tsv':
-            # 各ラジオ局について
-            for i, station in enumerate(stations):
-                # 名前を取得し,タブをスペースに置換
-                name = station.get('name', 'N/A').replace('\t', ' ')
-                # 国を取得
-                country = station.get('country', 'N/A')
-                # タグを取得し,タブをスペースに置換
-                tags = station.get('tags', 'N/A').replace('\t', ' ')
-                # URLを取得
-                url = station.get('url_resolved', station.get('url', 'N/A'))
-                # ビットレートを取得
-                bitrate = station.get('bitrate', 'N/A')
-                # コーデックを取得
-                codec = station.get('codec', 'N/A')
-                # TSV形式で出力
-                print(
-                    f"{i+1}\t{name}\t{country}\t{tags}\t"
-                    f"{bitrate}\t{codec}\t{url}"
-                )
+                print(self._format_station_line(station, format_type, i+1))
 
         # URLのみの場合
         elif format_type == 'urls':
@@ -210,8 +216,8 @@ class RadioBrowserCLI:
             for station in stations:
                 # URLを取得
                 url = station.get('url_resolved', station.get('url', ''))
-                # URLが存在する場合
-                if url:
+                # URLが存在し、有効な場合
+                if url and self._is_valid_url(url):
                     # URLを出力
                     print(url)
 
@@ -230,12 +236,15 @@ class RadioBrowserCLI:
                 name = station.get('name', 'Unknown')
                 # URLを取得
                 url = station.get('url_resolved', station.get('url', ''))
-                # URLが存在する場合
-                if url:
+                # URLが存在し、有効な場合
+                if url and self._is_valid_url(url):
                     # 拡張情報行を出力
                     print(f"#EXTINF:-1,{name}")
                     # URLを出力
                     print(url)
+        else:
+            logger.error(f"サポートされていないフォーマット '{format_type}'")
+            print("利用可能なフォーマット: csv, tsv, urls, json, m3u", file=sys.stderr)
 
 
 def main():
@@ -341,11 +350,11 @@ def main():
     # countriesコマンドの場合
     elif args.command == 'countries':
         # 国リストを取得
-        countries = cli.get_countries()
+        countries = cli.get_countries(limit=args.limit)
         # ヘッダーを出力
         print("利用可能な国:")
-        # 指定された数だけ繰り返す
-        for i, country in enumerate(countries[:args.limit]):
+        # 取得した国について繰り返す
+        for country in countries:
             # 国名と局数を出力
             print(
                 f"  {country.get('name', 'N/A')} "
@@ -354,11 +363,11 @@ def main():
     # tagsコマンドの場合
     elif args.command == 'tags':
         # タグリストを取得
-        tags = cli.get_tags()
+        tags = cli.get_tags(limit=args.limit)
         # ヘッダーを出力
         print("利用可能なタグ:")
-        # 指定された数だけ繰り返す
-        for i, tag in enumerate(tags[:args.limit]):
+        # 取得したタグについて繰り返す
+        for tag in tags:
             # タグ名と局数を出力
             print(
                 f"  {tag.get('name', 'N/A')} "
